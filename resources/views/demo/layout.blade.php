@@ -38,8 +38,20 @@
     </main>
 
     <script>
-        // Restore results from localStorage on page load
+        // Restore settings and results from localStorage on page load
         document.addEventListener('DOMContentLoaded', () => {
+            // Restore settings
+            const savedName = localStorage.getItem('demoSettingName');
+            const savedDomain = localStorage.getItem('demoSettingDomain');
+            const savedDashboard = localStorage.getItem('demoSettingDashboard');
+            if (savedName) document.getElementById('setting-name').value = savedName;
+            if (savedDomain) document.getElementById('setting-domain').value = savedDomain;
+            if (savedDashboard === '1') document.getElementById('dashboard-toggle').checked = true;
+
+            // Auto-save settings on change
+            document.getElementById('setting-name')?.addEventListener('input', e => localStorage.setItem('demoSettingName', e.target.value));
+            document.getElementById('setting-domain')?.addEventListener('input', e => localStorage.setItem('demoSettingDomain', e.target.value));
+            document.getElementById('dashboard-toggle')?.addEventListener('change', e => localStorage.setItem('demoSettingDashboard', e.target.checked ? '1' : '0'));
             const saved = localStorage.getItem('demoResults');
             if (saved) {
                 const results = JSON.parse(saved);
@@ -71,6 +83,15 @@
 
         function resetAll() {
             localStorage.removeItem('demoResults');
+            localStorage.removeItem('demoSettingName');
+            localStorage.removeItem('demoSettingDomain');
+            localStorage.removeItem('demoSettingDashboard');
+            const nameEl = document.getElementById('setting-name');
+            const domainEl = document.getElementById('setting-domain');
+            const dashEl = document.getElementById('dashboard-toggle');
+            if (nameEl) nameEl.value = 'Demo User';
+            if (domainEl) domainEl.value = 'cashier-demo.test';
+            if (dashEl) dashEl.checked = false;
             document.querySelectorAll('[id^="log-"]').forEach(el => el.innerHTML = '');
             document.querySelectorAll('[id^="status-"]').forEach(el => {
                 el.className = 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600';
