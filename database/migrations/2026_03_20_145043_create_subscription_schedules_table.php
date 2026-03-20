@@ -8,6 +8,11 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * Note: The table name 'subscription_schedules' does not use the 'cashier_' prefix
+     * to stay consistent with the existing 'subscriptions' and 'subscription_items' tables
+     * which also omit the prefix. Changing this would be a breaking change for existing
+     * installations that have already run this migration.
      */
     public function up(): void
     {
