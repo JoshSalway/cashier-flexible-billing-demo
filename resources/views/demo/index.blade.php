@@ -1,0 +1,101 @@
+@extends('demo.layout')
+
+@section('content')
+<div class="mb-8 flex items-center justify-between">
+    <div>
+        <h1 class="text-3xl font-bold text-gray-900">Flexible Billing Demo</h1>
+        <p class="mt-2 text-gray-600">14 scenarios running against the <strong>real Stripe API</strong>. Each step streams live as it executes.</p>
+    </div>
+    <div class="flex items-center gap-3">
+        <span id="run-all-progress" class="text-sm text-gray-500 hidden"></span>
+        <button onclick="runAll(this)" class="bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-colors shadow-lg flex items-center gap-2">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" /></svg>
+            Run All 14 Scenarios
+        </button>
+    </div>
+</div>
+
+{{-- What Changed: Before & After --}}
+<div class="mb-10 bg-gradient-to-r from-gray-900 to-stripe rounded-2xl p-8 text-white shadow-xl">
+    <h2 class="text-2xl font-bold mb-2">What Changed</h2>
+    <p class="text-white/70 text-sm mb-6">Flexible billing builds on everything Cashier already does well. Here is what it adds.</p>
+    <div class="grid grid-cols-2 gap-8">
+        <div>
+            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                <span class="inline-flex items-center rounded-full bg-white/10 px-2.5 py-0.5 text-xs">CLASSIC MODE</span>
+                What Cashier Has Today
+            </h3>
+            <div class="space-y-2 text-sm text-gray-300">
+                <div class="flex items-start gap-2"><span class="text-white/40 mt-0.5">&mdash;</span> Fixed-price subscriptions with quantity</div>
+                <div class="flex items-start gap-2"><span class="text-white/40 mt-0.5">&mdash;</span> Metered billing with manual <code class="bg-white/10 px-1 rounded">clear_usage</code> handling</div>
+                <div class="flex items-start gap-2"><span class="text-white/40 mt-0.5">&mdash;</span> Single billing mode, one approach for all</div>
+                <div class="flex items-start gap-2"><span class="text-white/40 mt-0.5">&mdash;</span> Proration amounts are net of discounts</div>
+            </div>
+            <div class="mt-4 bg-black/30 rounded-lg p-3 text-xs font-mono text-gray-300">
+                <div class="text-gray-500">// Classic: straightforward subscription</div>
+                <div>$user->newSubscription('default', $priceId)</div>
+                <div class="pl-4">->create($paymentMethod);</div>
+            </div>
+        </div>
+        <div>
+            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                <span class="inline-flex items-center rounded-full bg-green-500/20 text-green-300 px-2.5 py-0.5 text-xs">FLEXIBLE MODE</span>
+                What This PR Adds
+            </h3>
+            <div class="space-y-2 text-sm text-white">
+                <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> Hybrid billing: base plan + metered usage on one subscription</div>
+                <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> Automatic <code class="bg-white/10 px-1 rounded">clear_usage</code> handling in flexible mode</div>
+                <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> Subscription schedules, quotes, billing credits, rate cards</div>
+                <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> Itemized proration discounts with transparent line items</div>
+            </div>
+            <div class="mt-4 bg-black/30 rounded-lg p-3 text-xs font-mono text-green-200">
+                <div class="text-green-400/70">// Flexible: hybrid billing in one call</div>
+                <div>$user->newSubscription('default')</div>
+                <div class="pl-4">->price($basePlan)</div>
+                <div class="pl-4">->meteredPrice($apiCallsPrice)</div>
+                <div class="pl-4">->withBillingMode('flexible')</div>
+                <div class="pl-4">->create($paymentMethod);</div>
+            </div>
+        </div>
+    </div>
+    <div class="mt-6 pt-6 border-t border-white/10 text-sm text-white/60">
+        <strong class="text-white/80">Migration path:</strong> Existing subscriptions stay on classic mode. Use <code class="bg-white/10 px-1 rounded">$subscription->migrateToFlexibleBillingMode()</code> to upgrade individual subscriptions, or set <code class="bg-white/10 px-1 rounded">Cashier::defaultBillingMode('flexible')</code> in your service provider so all new subscriptions use it automatically.
+    </div>
+</div>
+
+{{-- Section: Core --}}
+<h2 class="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2"><span class="w-1.5 h-6 bg-stripe rounded-full"></span> Core Flexible Billing</h2>
+<div class="grid gap-4 mb-10">
+    @include('demo.scenario', ['n' => 1, 'id' => 'flexible-sub', 'color' => 'stripe', 'title' => 'Flexible Subscription', 'fyi' => 'The foundation of everything. Any SaaS app that charges a monthly fee can benefit from the improved proration and invoice handling.', 'desc' => 'Create a subscription with <code class="text-stripe">billing_mode: flexible</code>, verify on Stripe, clean up.'])
+    @include('demo.scenario', ['n' => 2, 'id' => 'migration', 'color' => 'orange-500', 'title' => 'Classic to Flexible Migration', 'fyi' => 'For existing apps upgrading. Stripe provides a dedicated /migrate endpoint so you can upgrade subscriptions one at a time without disruption.', 'desc' => 'Start classic, migrate via <code class="text-stripe">/migrate</code>, swap price, cancel.'])
+    @include('demo.scenario', ['n' => 3, 'id' => 'hybrid', 'color' => 'emerald-500', 'title' => 'Hybrid Billing (Fixed + Metered)', 'fyi' => 'The killer feature. Think base plan + API overage charges, or a seat license + storage usage. Most modern SaaS needs this.', 'desc' => 'Combine $29/mo base + $0.01/API call on one flexible subscription.'])
+    @include('demo.scenario', ['n' => 4, 'id' => 'proration-discounts', 'color' => 'indigo-500', 'title' => 'Proration Discounts', 'fyi' => 'Controls how mid-cycle upgrades appear on invoices. Itemized mode shows discount line items separately for full transparency.', 'desc' => 'Compare <code class="text-stripe">itemized</code> vs <code class="text-stripe">included</code> proration modes.'])
+    @include('demo.scenario', ['n' => 5, 'id' => 'swap', 'color' => 'teal-500', 'title' => 'Swap / Upgrade / Downgrade', 'fyi' => 'Proves billing mode survives plan changes. Users upgrade/downgrade freely and flexible mode stays active throughout.', 'desc' => 'Starter to Pro to Enterprise and back, all in flexible mode.'])
+    @include('demo.scenario', ['n' => 6, 'id' => 'global-default', 'color' => 'cyan-500', 'title' => 'Global Default Billing Mode', 'fyi' => 'One line in your AppServiceProvider and every new subscription uses flexible billing automatically. No code changes elsewhere.', 'desc' => '<code class="text-stripe">Cashier::defaultBillingMode(\'flexible\')</code> in action.'])
+    @include('demo.scenario', ['n' => 7, 'id' => 'cancel-resume', 'color' => 'pink-500', 'title' => 'Cancel and Resume', 'fyi' => 'Grace periods work exactly the same in flexible mode. Resume preserves the billing mode so nothing breaks.', 'desc' => 'Cancel with grace period, resume, verify billing mode preserved.'])
+</div>
+
+{{-- Section: Schedules & Quotes --}}
+<h2 class="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2"><span class="w-1.5 h-6 bg-blue-500 rounded-full"></span> Subscription Schedules &amp; Quotes</h2>
+<div class="grid gap-4 mb-10">
+    @include('demo.scenario', ['n' => 8, 'id' => 'schedule', 'color' => 'blue-500', 'title' => 'Multi-Phase Schedule', 'fyi' => 'Pre-plan subscription transitions. Useful for trial-to-paid, annual discount periods, or staged enterprise onboarding.', 'desc' => 'Create 2-phase schedule (Starter to Pro), then release.'])
+    @include('demo.scenario', ['n' => 9, 'id' => 'quote', 'color' => 'purple-500', 'title' => 'Quote Lifecycle', 'fyi' => 'For B2B sales workflows. Generate a formal quote, let the customer review it, and when they accept it auto-creates the subscription.', 'desc' => 'Create, finalize, accept a quote — subscription created automatically.'])
+    @include('demo.scenario', ['n' => 10, 'id' => 'schedule-from-sub', 'color' => 'sky-500', 'title' => 'Schedule from Subscription', 'fyi' => 'Convert a running subscription into a managed schedule. Useful when a customer commits to a plan change at their next billing cycle.', 'desc' => 'Convert running flexible sub into a schedule (billing mode inherited).'])
+</div>
+
+{{-- Section: Usage & Pricing --}}
+<h2 class="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2"><span class="w-1.5 h-6 bg-amber-500 rounded-full"></span> Usage Billing, Credits &amp; Pricing</h2>
+<div class="grid gap-4 mb-10">
+    @include('demo.scenario', ['n' => 11, 'id' => 'credits', 'color' => 'amber-500', 'title' => 'Billing Credits', 'fyi' => 'Issue promotional credits, handle refunds as balance adjustments, or pre-pay for usage. Works with any subscription model.', 'desc' => 'Add $100 credit, calculate against $150 usage, deduct $30.'])
+    @include('demo.scenario', ['n' => 12, 'id' => 'metered-usage', 'color' => 'lime-600', 'title' => 'Metered Usage Reporting', 'fyi' => 'Report consumption events to Stripe in real-time. Stripe aggregates them and includes the charges on the next invoice automatically.', 'desc' => 'Create meter, report 350 usage events, track estimated charges.'])
+    @include('demo.scenario', ['n' => 13, 'id' => 'usage-thresholds', 'color' => 'violet-500', 'title' => 'Usage Thresholds', 'fyi' => 'Monitor consumption against limits. Useful for alerting customers approaching their plan limits or calculating overage charges.', 'desc' => '<span class="inline-flex items-center rounded-full bg-violet-100 text-violet-700 px-1.5 py-0.5 text-xs font-medium mr-1">DB only</span> Set threshold, check at 50/100/150%, track overage.'])
+    @include('demo.scenario', ['n' => 14, 'id' => 'ratecard', 'color' => 'rose-500', 'title' => 'Rate Card Pricing', 'fyi' => 'Model your pricing locally for display, comparison, or cost estimation without making Stripe API calls. Supports all common pricing models.', 'desc' => '<span class="inline-flex items-center rounded-full bg-rose-100 text-rose-700 px-1.5 py-0.5 text-xs font-medium mr-1">Local only</span> Graduated tiered, volume, package, and flat rate calculations.'])
+</div>
+
+<div class="text-center text-gray-400 text-sm py-4">
+    Built with Laravel 13 &middot; Laravel Cashier &middot; Stripe Flexible Billing
+    <br>
+    <a href="https://github.com/JoshSalway/cashier-stripe/pull/5" class="text-stripe hover:underline">View the PR</a>
+    &middot; Based on <a href="https://github.com/laravel/cashier-stripe/pull/1772" class="text-stripe hover:underline">PR #1772</a> by @Diddyy
+</div>
+@endsection
