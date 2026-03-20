@@ -15,6 +15,8 @@ class DemoController extends Controller
     protected float $scenarioStart;
     protected float $lastStepTime;
     protected bool $showDashboardLinks = false;
+    protected string $customerName = 'Demo User';
+    protected string $customerDomain = 'cashier-demo.test';
 
     public function index()
     {
@@ -28,6 +30,8 @@ class DemoController extends Controller
             $this->scenarioStart = microtime(true);
             $this->lastStepTime = $this->scenarioStart;
             $this->showDashboardLinks = $request->boolean('dashboard');
+            $this->customerName = $request->input('name', config('demo.customer_name', 'Demo User'));
+            $this->customerDomain = $request->input('domain', config('demo.customer_email_domain', 'cashier-demo.test'));
 
             try {
                 $method = 'scenario'.str_replace('-', '', ucwords($scenario, '-'));
@@ -616,12 +620,9 @@ class DemoController extends Controller
 
     protected function freshUser(string $suffix): User
     {
-        $name = config('demo.customer_name', 'Demo User');
-        $domain = config('demo.customer_email_domain', 'cashier-demo.test');
-
         return User::forceCreate([
-            'name' => $name,
-            'email' => "demo-{$suffix}-".time()."@{$domain}",
+            'name' => $this->customerName,
+            'email' => "demo-{$suffix}-".time()."@{$this->customerDomain}",
             'password' => bcrypt('password'),
         ]);
     }

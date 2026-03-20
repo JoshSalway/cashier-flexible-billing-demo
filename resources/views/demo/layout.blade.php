@@ -118,8 +118,14 @@
                 statusEl.className = 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800';
                 statusEl.textContent = 'Running';
 
-                const dashboardOn = document.getElementById('dashboard-toggle')?.checked ? '?dashboard=1' : '';
-                const evtSource = new EventSource('/stream/' + id + dashboardOn);
+                const params = new URLSearchParams();
+                if (document.getElementById('dashboard-toggle')?.checked) params.set('dashboard', '1');
+                const nameEl = document.getElementById('setting-name');
+                const domainEl = document.getElementById('setting-domain');
+                if (nameEl?.value && nameEl.value !== 'Demo User') params.set('name', nameEl.value);
+                if (domainEl?.value && domainEl.value !== 'cashier-demo.test') params.set('domain', domainEl.value);
+                const qs = params.toString() ? '?' + params.toString() : '';
+                const evtSource = new EventSource('/stream/' + id + qs);
                 let ok = true;
                 const collectedSteps = [];
 
