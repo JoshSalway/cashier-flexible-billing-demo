@@ -616,9 +616,12 @@ class DemoController extends Controller
 
     protected function freshUser(string $suffix): User
     {
+        $name = config('demo.customer_name', 'Demo User');
+        $domain = config('demo.customer_email_domain', 'cashier-demo.test');
+
         return User::forceCreate([
-            'name' => 'Demo User',
-            'email' => "demo-{$suffix}-".time().'@cashier-demo.test',
+            'name' => $name,
+            'email' => "demo-{$suffix}-".time()."@{$domain}",
             'password' => bcrypt('password'),
         ]);
     }
