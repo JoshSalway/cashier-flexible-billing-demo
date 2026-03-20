@@ -104,7 +104,11 @@ class DemoController extends Controller
         ], links: $this->stripeLinks([
             'Subscription' => $subscription->stripe_id,
             'Customer' => $user->stripeId(),
-        ]));
+        ]), code: '$subscription = $user->newSubscription(\'default\', $priceId)
+    ->withBillingMode(\'flexible\')
+    ->create(\'pm_card_visa\');
+
+$subscription->usesFlexibleBilling(); // true');
 
         $subscription->cancelNow();
         $this->step('Cleaned up', true);
@@ -131,12 +135,16 @@ class DemoController extends Controller
         $subscription = $user->newSubscription('default', $price->id)->create('pm_card_visa');
         $this->step('Created classic subscription ($10/mo)', ! $subscription->usesFlexibleBilling(), [
             'billing_mode' => 'classic',
-        ]);
+        ], code: '// Classic mode (default)
+$subscription = $user->newSubscription(\'default\', $priceId)
+    ->create(\'pm_card_visa\');');
 
         $subscription->migrateToFlexibleBillingMode();
         $this->step('Migrated via POST /v1/subscriptions/{id}/migrate', $subscription->usesFlexibleBilling(), [
             'billing_mode' => 'flexible',
-        ], links: $this->stripeLinks(['Subscription' => $subscription->stripe_id]));
+        ], links: $this->stripeLinks(['Subscription' => $subscription->stripe_id]),
+        code: '// One-way migration (cannot go back to classic)
+$subscription->migrateToFlexibleBillingMode();');
 
         $subscription->swap($premium->id);
         $this->step('Swapped to premium ($25/mo) — billing mode preserved', $subscription->usesFlexibleBilling() && $subscription->stripe_price === $premium->id, [
@@ -187,7 +195,12 @@ class DemoController extends Controller
         $this->step('Created hybrid subscription', $subscription->hasMultiplePrices() && $subscription->usesFlexibleBilling(), [
             'items' => $subscription->items->count(),
             'billing_mode' => 'flexible',
-        ], links: $this->stripeLinks(['Subscription' => $subscription->stripe_id]));
+        ], links: $this->stripeLinks(['Subscription' => $subscription->stripe_id]),
+        code: '$subscription = $user->newSubscription(\'default\')
+    ->price(\'price_base_plan\')        // $29/mo fixed
+    ->meteredPrice(\'price_api_calls\') // $0.01 per call
+    ->withBillingMode(\'flexible\')
+    ->create(\'pm_card_visa\');');
 
         $subscription->removePrice($metered->id);
         $this->step('Removed metered price (no clear_usage error in flexible mode)', $subscription->hasSinglePrice(), [
@@ -220,7 +233,11 @@ class DemoController extends Controller
         $this->step('Created with itemized proration discounts', $sub->usesFlexibleBilling(), [
             'mode' => 'itemized',
             'effect' => 'Discount amounts shown as separate line items on invoices',
-        ], links: $this->stripeLinks(['Subscription' => $sub->stripe_id]));
+        ], links: $this->stripeLinks(['Subscription' => $sub->stripe_id]),
+        code: '$subscription = $user->newSubscription(\'default\', $priceId)
+    ->withBillingMode(\'flexible\')
+    ->withProrationDiscounts(\'itemized\')
+    ->create(\'pm_card_visa\');');
 
         $sub->cancelNow();
         $this->step('Cleaned up', true);
@@ -240,16 +257,19 @@ class DemoController extends Controller
         $enterprise = $this->stripe()->prices->create(['product' => $product->id, 'currency' => 'usd', 'recurring' => ['interval' => 'month'], 'unit_amount' => 9900]);
 
         $sub = $user->newSubscription('default', $starter->id)->withBillingMode('flexible')->create('pm_card_visa');
-        $this->step('Started on Starter ($9/mo)', true);
+        $this->step('Started on Starter ($9/mo)', true, code: '$sub = $user->newSubscription(\'default\', $starterPrice)
+    ->withBillingMode(\'flexible\')
+    ->create(\'pm_card_visa\');');
 
         $sub->swap($pro->id);
-        $this->step('Upgraded to Pro ($29/mo)', $sub->stripe_price === $pro->id);
+        $this->step('Upgraded to Pro ($29/mo)', $sub->stripe_price === $pro->id, code: '$subscription->swap($proPrice);');
 
         $sub->swap($enterprise->id);
-        $this->step('Upgraded to Enterprise ($99/mo)', $sub->stripe_price === $enterprise->id);
+        $this->step('Upgraded to Enterprise ($99/mo)', $sub->stripe_price === $enterprise->id, code: '$subscription->swap($enterprisePrice);');
 
         $sub->swap($starter->id);
-        $this->step('Downgraded to Starter ($9/mo) — billing mode preserved', $sub->usesFlexibleBilling() && $sub->stripe_price === $starter->id);
+        $this->step('Downgraded to Starter ($9/mo) — billing mode preserved', $sub->usesFlexibleBilling() && $sub->stripe_price === $starter->id, code: '$subscription->swap($starterPrice);
+$subscription->usesFlexibleBilling(); // still true');
 
         $sub->cancelNow();
         $this->step('Cleaned up', true);
@@ -265,7 +285,8 @@ class DemoController extends Controller
         $this->step('Current default: '.$original, true);
 
         Cashier::defaultBillingMode('flexible');
-        $this->step('Set Cashier::defaultBillingMode("flexible")', Cashier::$defaultBillingMode === 'flexible');
+        $this->step('Set Cashier::defaultBillingMode("flexible")', Cashier::$defaultBillingMode === 'flexible', code: '// In AppServiceProvider::boot()
+Cashier::defaultBillingMode(\'flexible\');');
 
         $user = $this->freshUser('global');
         $product = $this->stripe()->products->create(['name' => 'Global Test '.time()]);
@@ -275,7 +296,11 @@ class DemoController extends Controller
         $this->step('Created subscription WITHOUT withBillingMode() — uses global default', $sub->usesFlexibleBilling(), [
             'billing_mode' => 'flexible',
             'called_withBillingMode' => 'No',
-        ]);
+        ], code: '// No withBillingMode() needed — global default applies
+$sub = $user->newSubscription(\'default\', $priceId)
+    ->create(\'pm_card_visa\');
+
+$sub->usesFlexibleBilling(); // true');
 
         $sub->cancelNow();
         Cashier::$defaultBillingMode = $original;
@@ -299,10 +324,14 @@ class DemoController extends Controller
         $sub->cancel();
         $this->step('Canceled — on grace period', $sub->onGracePeriod() && $sub->valid(), [
             'ends_at' => $sub->ends_at?->toDateTimeString(),
-        ]);
+        ], code: '$subscription->cancel();
+$subscription->onGracePeriod(); // true
+$subscription->valid();         // true');
 
         $sub->resume();
-        $this->step('Resumed — active again, billing mode preserved', $sub->active() && ! $sub->canceled() && $sub->usesFlexibleBilling());
+        $this->step('Resumed — active again, billing mode preserved', $sub->active() && ! $sub->canceled() && $sub->usesFlexibleBilling(), code: '$subscription->resume();
+$subscription->active();                // true
+$subscription->usesFlexibleBilling();   // true');
 
         $sub->cancelNow();
         $this->step('Cleaned up', true);
@@ -331,7 +360,17 @@ class DemoController extends Controller
         $this->step('Created 2-phase schedule', $schedule->active() && count($phases) === 2, [
             'phase_1' => 'Starter $9/mo (1 cycle)',
             'phase_2' => 'Pro $29/mo (1 cycle)',
-        ], links: $this->stripeLinks(['Schedule' => $schedule->stripe_id]));
+        ], links: $this->stripeLinks(['Schedule' => $schedule->stripe_id]),
+        code: '$schedule = $user->newSubscriptionSchedule(\'default\')
+    ->withBillingMode(\'flexible\')
+    ->addPhase([
+        [\'price\' => $starterPrice, \'quantity\' => 1],
+    ], [\'iterations\' => 1])
+    ->addPhase([
+        [\'price\' => $proPrice, \'quantity\' => 1],
+    ], [\'iterations\' => 1])
+    ->startDate(\'now\')
+    ->create();');
 
         $schedule->release();
         $this->step('Released — subscription continues independently', $schedule->released());
@@ -352,13 +391,18 @@ class DemoController extends Controller
 
         $quote = $user->newQuote()->addLineItem($price->id, 1)->description('Enterprise plan proposal')->create();
         $this->step('Created quote (draft)', $quote->draft(), ['amount' => '$'.number_format($quote->amount_total / 100, 2)],
-            links: $this->stripeLinks(['Quote' => $quote->stripe_id]));
+            links: $this->stripeLinks(['Quote' => $quote->stripe_id]),
+            code: '$quote = $user->newQuote()
+    ->addLineItem($priceId, 1)
+    ->description(\'Enterprise plan proposal\')
+    ->create();');
 
         $quote->finalize();
-        $this->step('Finalized (open — awaiting acceptance)', $quote->open());
+        $this->step('Finalized (open — awaiting acceptance)', $quote->open(), code: '$quote->finalize();');
 
         $quote->accept();
-        $this->step('Accepted — subscription created', $quote->accepted());
+        $this->step('Accepted — subscription created', $quote->accepted(), code: '$quote->accept();
+// Stripe auto-creates a subscription from the quote');
     }
 
     // =========================================================================
@@ -378,7 +422,10 @@ class DemoController extends Controller
         $schedule = $user->newSubscriptionSchedule('default')->createFromSubscription($sub);
         $this->step('Created schedule from subscription — billing mode inherited', $schedule->active(), [
             'billing_mode_set_explicitly' => 'No — inherited from subscription',
-        ], links: $this->stripeLinks(['Schedule' => $schedule->stripe_id, 'Subscription' => $sub->stripe_id]));
+        ], links: $this->stripeLinks(['Schedule' => $schedule->stripe_id, 'Subscription' => $sub->stripe_id]),
+        code: '// Do NOT call withBillingMode() here — inherited from sub
+$schedule = $user->newSubscriptionSchedule(\'default\')
+    ->createFromSubscription($subscription);');
 
         $schedule->cancel();
         $this->step('Cleaned up', true);
@@ -392,23 +439,24 @@ class DemoController extends Controller
     {
         $user = $this->freshUser('credits');
         $user->createAsStripeCustomer();
-        $this->step('Starting balance: $0.00', $user->availableCredits() === 0);
+        $this->step('Starting balance: $0.00', $user->availableCredits() === 0, code: '$user->availableCredits(); // 0');
 
         $user->addBillingCredits(10000, 'Welcome bonus');
         $this->step('Added $100.00 in credits', $user->availableCredits() === 10000, [
             'balance' => '$'.number_format($user->availableCredits() / 100, 2),
-        ]);
+        ], code: '$user->addBillingCredits(10000, \'Welcome bonus\');');
 
         $calc = $user->calculateCreditApplication(15000);
         $this->step('Applied to $150 usage: $100 covered, $50 remaining', $calc['applied_credits'] === 10000, [
             'applied' => '$'.number_format($calc['applied_credits'] / 100, 2),
             'remaining' => '$'.number_format($calc['remaining_usage'] / 100, 2),
-        ]);
+        ], code: '$result = $user->calculateCreditApplication(15000);
+// applied_credits: 10000, remaining_usage: 5000');
 
         $user->deductBillingCredits(3000, 'Usage charge');
         $this->step('Deducted $30.00', $user->availableCredits() === 7000, [
             'balance' => '$'.number_format($user->availableCredits() / 100, 2),
-        ]);
+        ], code: '$user->deductBillingCredits(3000, \'Usage charge\');');
     }
 
     // =========================================================================
@@ -438,13 +486,16 @@ class DemoController extends Controller
             ->meteredPrice($price->id)
             ->withBillingMode('flexible')
             ->create('pm_card_visa');
-        $this->step('Created metered subscription ($0.05/event)', $sub->usesFlexibleBilling());
+        $this->step('Created metered subscription ($0.05/event)', $sub->usesFlexibleBilling(), code: '$sub = $user->newSubscription(\'default\', $meteredPrice)
+    ->meteredPrice($meteredPrice)
+    ->withBillingMode(\'flexible\')
+    ->create(\'pm_card_visa\');');
 
         $user->reportMeterEvent($eventName, 100);
-        $this->step('Reported 100 events', true, ['estimated' => '$5.00']);
+        $this->step('Reported 100 events', true, ['estimated' => '$5.00'], code: '$user->reportMeterEvent(\'api_calls\', 100);');
 
         $user->reportMeterEvent($eventName, 250);
-        $this->step('Reported 250 more events (350 total)', true, ['estimated' => '$17.50']);
+        $this->step('Reported 250 more events (350 total)', true, ['estimated' => '$17.50'], code: '$user->reportMeterEvent(\'api_calls\', 250);');
 
         $sub->cancelNow();
         $this->step('Cleaned up', true);
@@ -462,7 +513,9 @@ class DemoController extends Controller
         $threshold = $user->setUsageThreshold('meter_api_calls', 10000, 'billing_cycle', [
             'alert_email' => 'billing@example.com',
         ]);
-        $this->step('Set threshold: 10,000 API calls/cycle', $threshold->threshold === 10000);
+        $this->step('Set threshold: 10,000 API calls/cycle', $threshold->threshold === 10000, code: '$user->setUsageThreshold(\'meter_api_calls\', 10000, \'billing_cycle\', [
+    \'alert_email\' => \'billing@example.com\',
+]);');
 
         $pct50 = $threshold->usagePercentage(5000);
         $pct100 = $threshold->usagePercentage(10000);
@@ -567,7 +620,7 @@ class DemoController extends Controller
         flush();
     }
 
-    protected function step(string $label, bool $success, ?array $detail = null, ?string $error = null, ?string $html = null, array $links = []): void
+    protected function step(string $label, bool $success, ?array $detail = null, ?string $error = null, ?string $html = null, array $links = [], ?string $code = null): void
     {
         $now = microtime(true);
         $stepMs = round(($now - $this->lastStepTime) * 1000, 1);
@@ -580,6 +633,7 @@ class DemoController extends Controller
             'detail' => $detail,
             'error' => $error,
             'html' => $html,
+            'code' => $code,
             'links' => $this->showDashboardLinks && ! empty($links) ? $links : null,
             'duration' => $stepMs < 1 ? '<1ms' : round($stepMs).'ms',
             'total' => $totalMs.'ms',
