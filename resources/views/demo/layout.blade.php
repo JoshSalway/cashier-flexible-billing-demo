@@ -163,7 +163,12 @@
             });
         }
 
-        const ALL = ['flexible-sub','migration','hybrid','proration-discounts','swap','global-default','cancel-resume','schedule','quote','schedule-from-sub','credits','metered-usage','usage-thresholds','ratecard'];
+        const ALL = [
+            'flexible-sub','hybrid','proration-discounts','swap','global-default','cancel-resume',
+            'schedule','quote','schedule-from-sub',
+            'credits','metered-usage','usage-thresholds','ratecard',
+            'migration',
+        ];
 
         async function runAll(btn) {
             const prog = document.getElementById('run-all-progress');
