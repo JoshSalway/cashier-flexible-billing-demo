@@ -38,6 +38,55 @@
     </main>
 
     <script>
+        // Restore results from localStorage on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem('demoResults');
+            if (saved) {
+                const results = JSON.parse(saved);
+                Object.entries(results).forEach(([id, data]) => {
+                    const logEl = document.getElementById('log-' + id);
+                    const statusEl = document.getElementById('status-' + id);
+                    if (!logEl || !statusEl) return;
+
+                    data.steps.forEach(step => appendStep(logEl, step));
+
+                    const t = document.createElement('div');
+                    t.className = 'mt-3 pt-3 border-t border-gray-200 text-right text-xs text-gray-400';
+                    t.textContent = 'Total: ' + (data.totalMs || '?') + 'ms';
+                    logEl.appendChild(t);
+
+                    statusEl.className = 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ' + (data.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+                    statusEl.textContent = data.success ? 'Passed' : 'Failed';
+                });
+                document.getElementById('reset-btn')?.classList.remove('hidden');
+            }
+        });
+
+        function saveResult(id, steps, success, totalMs) {
+            const saved = JSON.parse(localStorage.getItem('demoResults') || '{}');
+            saved[id] = { steps, success, totalMs };
+            localStorage.setItem('demoResults', JSON.stringify(saved));
+            document.getElementById('reset-btn')?.classList.remove('hidden');
+        }
+
+        function resetAll() {
+            localStorage.removeItem('demoResults');
+            document.querySelectorAll('[id^="log-"]').forEach(el => el.innerHTML = '');
+            document.querySelectorAll('[id^="status-"]').forEach(el => {
+                el.className = 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600';
+                el.textContent = 'Ready';
+            });
+            document.getElementById('reset-btn')?.classList.add('hidden');
+            const prog = document.getElementById('run-all-progress');
+            if (prog) { prog.classList.add('hidden'); prog.textContent = ''; }
+            const btn = document.getElementById('run-all-btn');
+            if (btn) {
+                btn.className = 'bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-colors shadow-lg flex items-center gap-2';
+                btn.innerHTML = '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" /></svg>Run All 14 Scenarios';
+                btn.onclick = () => runAll(btn);
+            }
+        }
+
         function appendStep(logEl, step) {
             const div = document.createElement('div');
             div.className = 'log-entry py-2 border-b border-gray-100 last:border-0';
@@ -46,7 +95,15 @@
             let detail = '';
             if (step.html) { detail = `<div class="mt-2">${step.html}</div>`; }
             else if (step.detail) { detail = `<pre class="text-xs text-gray-500 mt-1 bg-gray-50 rounded p-2">${JSON.stringify(step.detail, null, 2)}</pre>`; }
-            div.innerHTML = `<div class="flex items-start gap-2"><span class="${color} font-bold text-sm mt-0.5">${icon}</span><div class="flex-1"><div class="font-medium text-sm text-gray-900">${step.label}</div>${detail}${step.error ? `<div class="text-xs text-red-600 mt-1">${step.error}</div>` : ''}</div><span class="text-xs text-gray-400 shrink-0">${step.duration || ''}</span></div>`;
+
+            let linksHtml = '';
+            if (step.links && step.links.length) {
+                linksHtml = '<div class="mt-1.5 flex gap-2 flex-wrap">' + step.links.map(l =>
+                    `<a href="${l.url}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs text-stripe hover:text-stripe-dark font-medium"><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>${l.label}</a>`
+                ).join('') + '</div>';
+            }
+
+            div.innerHTML = `<div class="flex items-start gap-2"><span class="${color} font-bold text-sm mt-0.5">${icon}</span><div class="flex-1"><div class="font-medium text-sm text-gray-900">${step.label}</div>${detail}${linksHtml}${step.error ? `<div class="text-xs text-red-600 mt-1">${step.error}</div>` : ''}</div><span class="text-xs text-gray-400 shrink-0">${step.duration || ''}</span></div>`;
             logEl.appendChild(div);
             logEl.scrollTop = logEl.scrollHeight;
         }
@@ -61,11 +118,14 @@
                 statusEl.className = 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800';
                 statusEl.textContent = 'Running';
 
-                const evtSource = new EventSource('/stream/' + id);
+                const dashboardOn = document.getElementById('dashboard-toggle')?.checked ? '?dashboard=1' : '';
+                const evtSource = new EventSource('/stream/' + id + dashboardOn);
                 let ok = true;
+                const collectedSteps = [];
 
                 evtSource.addEventListener('step', e => {
                     const step = JSON.parse(e.data);
+                    collectedSteps.push(step);
                     appendStep(logEl, step);
                     if (!step.success) ok = false;
                 });
@@ -80,6 +140,7 @@
                     t.className = 'mt-3 pt-3 border-t border-gray-200 text-right text-xs text-gray-400';
                     t.textContent = 'Total: ' + (data.totalMs || '?') + 'ms';
                     logEl.appendChild(t);
+                    saveResult(id, collectedSteps, success, data.totalMs);
                     button.disabled = false;
                     button.innerHTML = 'Run';
                     resolve(success);

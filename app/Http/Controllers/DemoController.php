@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Laravel\Cashier\Cashier;
 use Laravel\Cashier\RateCard;
@@ -13,18 +14,20 @@ class DemoController extends Controller
     protected array $steps = [];
     protected float $scenarioStart;
     protected float $lastStepTime;
+    protected bool $showDashboardLinks = false;
 
     public function index()
     {
         return view('demo.index');
     }
 
-    public function stream(string $scenario): StreamedResponse
+    public function stream(string $scenario, Request $request): StreamedResponse
     {
-        return new StreamedResponse(function () use ($scenario) {
+        return new StreamedResponse(function () use ($scenario, $request) {
             $this->steps = [];
             $this->scenarioStart = microtime(true);
             $this->lastStepTime = $this->scenarioStart;
+            $this->showDashboardLinks = $request->boolean('dashboard');
 
             try {
                 $method = 'scenario'.str_replace('-', '', ucwords($scenario, '-'));
@@ -94,7 +97,10 @@ class DemoController extends Controller
             'stripe_id' => $subscription->stripe_id,
             'billing_mode' => $stripe->billing_mode->type,
             'status' => $subscription->stripe_status,
-        ]);
+        ], links: $this->stripeLinks([
+            'Subscription' => $subscription->stripe_id,
+            'Customer' => $user->stripeId(),
+        ]));
 
         $subscription->cancelNow();
         $this->step('Cleaned up', true);
@@ -126,7 +132,7 @@ class DemoController extends Controller
         $subscription->migrateToFlexibleBillingMode();
         $this->step('Migrated via POST /v1/subscriptions/{id}/migrate', $subscription->usesFlexibleBilling(), [
             'billing_mode' => 'flexible',
-        ]);
+        ], links: $this->stripeLinks(['Subscription' => $subscription->stripe_id]));
 
         $subscription->swap($premium->id);
         $this->step('Swapped to premium ($25/mo) — billing mode preserved', $subscription->usesFlexibleBilling() && $subscription->stripe_price === $premium->id, [
@@ -177,7 +183,7 @@ class DemoController extends Controller
         $this->step('Created hybrid subscription', $subscription->hasMultiplePrices() && $subscription->usesFlexibleBilling(), [
             'items' => $subscription->items->count(),
             'billing_mode' => 'flexible',
-        ]);
+        ], links: $this->stripeLinks(['Subscription' => $subscription->stripe_id]));
 
         $subscription->removePrice($metered->id);
         $this->step('Removed metered price (no clear_usage error in flexible mode)', $subscription->hasSinglePrice(), [
@@ -210,7 +216,7 @@ class DemoController extends Controller
         $this->step('Created with itemized proration discounts', $sub->usesFlexibleBilling(), [
             'mode' => 'itemized',
             'effect' => 'Discount amounts shown as separate line items on invoices',
-        ]);
+        ], links: $this->stripeLinks(['Subscription' => $sub->stripe_id]));
 
         $sub->cancelNow();
         $this->step('Cleaned up', true);
@@ -321,7 +327,7 @@ class DemoController extends Controller
         $this->step('Created 2-phase schedule', $schedule->active() && count($phases) === 2, [
             'phase_1' => 'Starter $9/mo (1 cycle)',
             'phase_2' => 'Pro $29/mo (1 cycle)',
-        ]);
+        ], links: $this->stripeLinks(['Schedule' => $schedule->stripe_id]));
 
         $schedule->release();
         $this->step('Released — subscription continues independently', $schedule->released());
@@ -341,7 +347,8 @@ class DemoController extends Controller
         $price = $this->stripe()->prices->create(['product' => $product->id, 'currency' => 'usd', 'recurring' => ['interval' => 'month'], 'unit_amount' => 4900]);
 
         $quote = $user->newQuote()->addLineItem($price->id, 1)->description('Enterprise plan proposal')->create();
-        $this->step('Created quote (draft)', $quote->draft(), ['amount' => '$'.number_format($quote->amount_total / 100, 2)]);
+        $this->step('Created quote (draft)', $quote->draft(), ['amount' => '$'.number_format($quote->amount_total / 100, 2)],
+            links: $this->stripeLinks(['Quote' => $quote->stripe_id]));
 
         $quote->finalize();
         $this->step('Finalized (open — awaiting acceptance)', $quote->open());
@@ -367,7 +374,7 @@ class DemoController extends Controller
         $schedule = $user->newSubscriptionSchedule('default')->createFromSubscription($sub);
         $this->step('Created schedule from subscription — billing mode inherited', $schedule->active(), [
             'billing_mode_set_explicitly' => 'No — inherited from subscription',
-        ]);
+        ], links: $this->stripeLinks(['Schedule' => $schedule->stripe_id, 'Subscription' => $sub->stripe_id]));
 
         $schedule->cancel();
         $this->step('Cleaned up', true);
@@ -556,7 +563,7 @@ class DemoController extends Controller
         flush();
     }
 
-    protected function step(string $label, bool $success, ?array $detail = null, ?string $error = null, ?string $html = null): void
+    protected function step(string $label, bool $success, ?array $detail = null, ?string $error = null, ?string $html = null, array $links = []): void
     {
         $now = microtime(true);
         $stepMs = round(($now - $this->lastStepTime) * 1000, 1);
@@ -569,12 +576,42 @@ class DemoController extends Controller
             'detail' => $detail,
             'error' => $error,
             'html' => $html,
+            'links' => $this->showDashboardLinks && ! empty($links) ? $links : null,
             'duration' => $stepMs < 1 ? '<1ms' : round($stepMs).'ms',
             'total' => $totalMs.'ms',
         ], fn ($v) => ! is_null($v));
 
         $this->steps[] = $stepData;
         $this->sendEvent('step', $stepData);
+    }
+
+    /**
+     * Generate Stripe test dashboard links for various object types.
+     */
+    protected function stripeLinks(array $objects): array
+    {
+        $base = 'https://dashboard.stripe.com/test';
+        $links = [];
+
+        foreach ($objects as $label => $id) {
+            if (str_starts_with($id, 'cus_')) {
+                $links[] = ['label' => $label, 'url' => "{$base}/customers/{$id}"];
+            } elseif (str_starts_with($id, 'sub_sched_')) {
+                $links[] = ['label' => $label, 'url' => "{$base}/subscription-schedules/{$id}"];
+            } elseif (str_starts_with($id, 'sub_')) {
+                $links[] = ['label' => $label, 'url' => "{$base}/subscriptions/{$id}"];
+            } elseif (str_starts_with($id, 'qt_') || str_starts_with($id, 'quo_')) {
+                $links[] = ['label' => $label, 'url' => "{$base}/quotes/{$id}"];
+            } elseif (str_starts_with($id, 'prod_')) {
+                $links[] = ['label' => $label, 'url' => "{$base}/products/{$id}"];
+            } elseif (str_starts_with($id, 'price_')) {
+                $links[] = ['label' => $label, 'url' => "{$base}/prices/{$id}"];
+            } else {
+                $links[] = ['label' => $label, 'url' => "{$base}/search?query={$id}"];
+            }
+        }
+
+        return $links;
     }
 
     protected function freshUser(string $suffix): User

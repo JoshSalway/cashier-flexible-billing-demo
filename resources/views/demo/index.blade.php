@@ -6,9 +6,20 @@
         <h1 class="text-3xl font-bold text-gray-900">Flexible Billing Demo</h1>
         <p class="mt-2 text-gray-600">14 scenarios running against the <strong>real Stripe API</strong>. Each step streams live as it executes.</p>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-4">
+        {{-- Dashboard links toggle --}}
+        <label class="flex items-center gap-2 text-sm text-gray-500 cursor-pointer select-none">
+            <input type="checkbox" id="dashboard-toggle" class="rounded border-gray-300 text-stripe focus:ring-stripe h-4 w-4">
+            <span>Stripe Dashboard links</span>
+        </label>
+
         <span id="run-all-progress" class="text-sm text-gray-500 hidden"></span>
-        <button onclick="runAll(this)" class="bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-colors shadow-lg flex items-center gap-2">
+
+        <button id="reset-btn" onclick="resetAll()" class="text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors hidden">
+            Reset
+        </button>
+
+        <button id="run-all-btn" onclick="runAll(this)" class="bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-colors shadow-lg flex items-center gap-2">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" /></svg>
             Run All 14 Scenarios
         </button>
