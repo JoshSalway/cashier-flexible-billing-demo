@@ -191,29 +191,48 @@
             'migration',
         ];
 
+        let stopRequested = false;
+
         async function runAll(btn) {
+            stopRequested = false;
             const prog = document.getElementById('run-all-progress');
+            const stopBtn = document.getElementById('stop-btn');
             prog.classList.remove('hidden');
+            stopBtn.classList.remove('hidden');
             const t0 = performance.now();
             btn.disabled = true;
             btn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-5 w-5 text-white inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>Running All...';
-            let p = 0, f = 0;
+            let p = 0, f = 0, ran = 0;
             for (let i = 0; i < ALL.length; i++) {
+                if (stopRequested) break;
                 prog.textContent = `${i+1}/${ALL.length} (${((performance.now()-t0)/1000).toFixed(1)}s)`;
                 const b = document.querySelector(`[onclick*="'${ALL[i]}'"]`);
-                if (b) { const ok = await runScenario(ALL[i], b); ok ? p++ : f++; }
+                if (b) { const ok = await runScenario(ALL[i], b); ok ? p++ : f++; ran++; }
             }
+            stopBtn.classList.add('hidden');
             const sec = ((performance.now()-t0)/1000).toFixed(1);
+            const stopped = stopRequested ? ` (stopped after ${ran})` : '';
             btn.disabled = false;
-            if (f === 0) {
+            if (f === 0 && !stopRequested) {
                 btn.innerHTML = `All ${p} Passed`;
                 btn.className = 'bg-green-600 text-white px-6 py-3 rounded-xl text-sm font-semibold shadow-lg flex items-center gap-2 cursor-default';
+            } else if (stopRequested) {
+                btn.innerHTML = '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" /></svg>Resume';
+                btn.className = 'bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-colors shadow-lg flex items-center gap-2';
+                btn.onclick = () => runAll(btn);
             } else {
                 btn.innerHTML = `${p} Passed, ${f} Failed`;
                 btn.className = 'bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl text-sm font-semibold shadow-lg flex items-center gap-2';
                 btn.onclick = () => runAll(btn);
             }
-            prog.textContent = `${p}/${ALL.length} in ${sec}s`;
+            prog.textContent = `${p}/${ran} passed in ${sec}s${stopped}`;
+        }
+
+        function stopAll() {
+            stopRequested = true;
+            const stopBtn = document.getElementById('stop-btn');
+            stopBtn.textContent = 'Stopping after current...';
+            stopBtn.disabled = true;
         }
     </script>
 </body>

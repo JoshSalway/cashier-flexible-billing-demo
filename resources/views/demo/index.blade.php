@@ -14,6 +14,10 @@
 
         <span id="run-all-progress" class="text-sm text-gray-500 hidden"></span>
 
+        <button id="stop-btn" onclick="stopAll()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors hidden">
+            Stop
+        </button>
+
         <button id="reset-btn" onclick="resetAll()" class="text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors hidden">
             Reset
         </button>
