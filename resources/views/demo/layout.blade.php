@@ -4,7 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flexible Billing Demo — Laravel Cashier</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/php.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+    <script>document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el)));</script>
     <script>tailwind.config = { theme: { extend: { colors: { stripe: '#635BFF', 'stripe-dark': '#4B45C6' } } } }</script>
     <style>
         .scenario-card { transition: all 0.2s; }
@@ -25,9 +30,11 @@
                     <span class="text-white font-bold text-lg">Flexible Billing Demo</span>
                     <span class="text-white/60 text-sm">Laravel Cashier &middot; Laravel 13</span>
                 </div>
-                <div class="text-white/80 text-sm">
-                    Stripe SDK <span class="font-mono text-green-300">{{ \Stripe\Stripe::VERSION }}</span>
-                    &middot; API <span class="font-mono text-green-300">{{ \Stripe\Util\ApiVersion::CURRENT }}</span>
+                <div class="flex items-center gap-4 text-white/80 text-sm">
+                    <a href="/" class="hover:text-white transition-colors {{ request()->is('/') ? 'text-white font-medium' : '' }}">Demo</a>
+                    <a href="/docs" class="hover:text-white transition-colors {{ request()->is('docs') ? 'text-white font-medium' : '' }}">Docs</a>
+                    <span class="text-white/30">|</span>
+                    <span>SDK <span class="font-mono text-green-300">{{ \Stripe\Stripe::VERSION }}</span></span>
                 </div>
             </div>
         </div>

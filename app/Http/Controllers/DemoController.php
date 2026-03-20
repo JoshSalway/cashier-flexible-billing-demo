@@ -23,6 +23,27 @@ class DemoController extends Controller
         return view('demo.index');
     }
 
+    public function docs()
+    {
+        $markdown = file_get_contents(base_path('docs/flexible-billing.md'));
+
+        $content = \Illuminate\Support\Str::markdown($markdown);
+
+        // Add id attributes to headings for anchor links
+        $content = preg_replace_callback('/<(h[1-6])>(.*?)<\/h[1-6]>/i', function ($matches) {
+            $tag = $matches[1];
+            $text = strip_tags($matches[2]);
+            // Match GitHub/markdown heading slug algorithm
+            $id = strtolower($text);
+            $id = preg_replace('/[^a-z0-9 -]/', '', $id);
+            $id = str_replace(' ', '-', trim($id));
+
+            return "<{$tag} id=\"{$id}\">{$matches[2]}</{$tag}>";
+        }, $content);
+
+        return view('demo.docs', ['content' => $content]);
+    }
+
     public function stream(string $scenario, Request $request): StreamedResponse
     {
         return new StreamedResponse(function () use ($scenario, $request) {

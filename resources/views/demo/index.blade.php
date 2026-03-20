@@ -54,51 +54,37 @@
     <p class="text-xs text-gray-400 mt-2">Each scenario creates a unique customer in Stripe. Change the name/domain to organize test data in your dashboard.</p>
 </div>
 
-{{-- What Changed: Before & After --}}
+{{-- What Flexible Billing Adds --}}
 <div class="mb-10 bg-gradient-to-r from-gray-900 to-stripe rounded-2xl p-8 text-white shadow-xl">
-    <h2 class="text-2xl font-bold mb-2">What Changed</h2>
-    <p class="text-white/70 text-sm mb-6">Flexible billing builds on everything Cashier already does well. Here is what it adds.</p>
+    <h2 class="text-2xl font-bold mb-4">What Flexible Billing Adds to Cashier</h2>
+    <p class="text-white/70 text-sm mb-6">Cashier already handles subscriptions, payments, and metered billing well. Flexible billing mode extends it with:</p>
     <div class="grid grid-cols-2 gap-8">
-        <div>
-            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                <span class="inline-flex items-center rounded-full bg-white/10 px-2.5 py-0.5 text-xs">CLASSIC MODE</span>
-                What Cashier Has Today
-            </h3>
-            <div class="space-y-2 text-sm text-gray-300">
-                <div class="flex items-start gap-2"><span class="text-white/40 mt-0.5">&mdash;</span> Fixed-price subscriptions with quantity</div>
-                <div class="flex items-start gap-2"><span class="text-white/40 mt-0.5">&mdash;</span> Metered billing with manual <code class="bg-white/10 px-1 rounded">clear_usage</code> handling</div>
-                <div class="flex items-start gap-2"><span class="text-white/40 mt-0.5">&mdash;</span> Single billing mode, one approach for all</div>
-                <div class="flex items-start gap-2"><span class="text-white/40 mt-0.5">&mdash;</span> Proration amounts are net of discounts</div>
-            </div>
-            <div class="mt-4 bg-black/30 rounded-lg p-3 text-xs font-mono text-gray-300">
-                <div class="text-gray-500">// Classic: straightforward subscription</div>
-                <div>$user->newSubscription('default', $priceId)</div>
-                <div class="pl-4">->create($paymentMethod);</div>
-            </div>
+        <div class="space-y-3 text-sm text-white">
+            <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> <span><strong>Hybrid subscriptions</strong> — fixed base plan + metered usage on one subscription</span></div>
+            <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> <span><strong>Multi-phase schedules</strong> — plan transitions happen automatically</span></div>
+            <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> <span><strong>Quotes</strong> — generate proposals that create subscriptions when accepted</span></div>
+            <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> <span><strong>Proration control</strong> — choose itemized or included discount display on invoices</span></div>
+            <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> <span><strong>Billing credits</strong> — issue credits, check balances, calculate coverage against usage</span></div>
+            <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> <span><strong>Usage thresholds</strong> — monitor consumption and track overage percentages</span></div>
+            <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> <span><strong>Rate cards</strong> — model tiered, package, and flat pricing locally</span></div>
         </div>
         <div>
-            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                <span class="inline-flex items-center rounded-full bg-green-500/20 text-green-300 px-2.5 py-0.5 text-xs">FLEXIBLE MODE</span>
-                What This PR Adds
-            </h3>
-            <div class="space-y-2 text-sm text-white">
-                <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> Hybrid billing: base plan + metered usage on one subscription</div>
-                <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> Automatic <code class="bg-white/10 px-1 rounded">clear_usage</code> handling in flexible mode</div>
-                <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> Subscription schedules, quotes, billing credits, rate cards</div>
-                <div class="flex items-start gap-2"><span class="text-green-400 mt-0.5">+</span> Itemized proration discounts with transparent line items</div>
+            <div class="bg-black/30 rounded-lg p-4 text-xs font-mono text-green-200 mb-4">
+                <div class="text-green-400/70">// One-line global opt-in</div>
+                <div>Cashier::defaultBillingMode('flexible');</div>
             </div>
-            <div class="mt-4 bg-black/30 rounded-lg p-3 text-xs font-mono text-green-200">
-                <div class="text-green-400/70">// Flexible: hybrid billing in one call</div>
+            <div class="bg-black/30 rounded-lg p-4 text-xs font-mono text-green-200">
+                <div class="text-green-400/70">// Or per subscription</div>
                 <div>$user->newSubscription('default')</div>
                 <div class="pl-4">->price($basePlan)</div>
-                <div class="pl-4">->meteredPrice($apiCallsPrice)</div>
+                <div class="pl-4">->meteredPrice($apiCalls)</div>
                 <div class="pl-4">->withBillingMode('flexible')</div>
                 <div class="pl-4">->create($paymentMethod);</div>
             </div>
         </div>
     </div>
-    <div class="mt-6 pt-6 border-t border-white/10 text-sm text-white/60">
-        <strong class="text-white/80">Migration path:</strong> Existing subscriptions stay on classic mode. Use <code class="bg-white/10 px-1 rounded">$subscription->migrateToFlexibleBillingMode()</code> to upgrade individual subscriptions, or set <code class="bg-white/10 px-1 rounded">Cashier::defaultBillingMode('flexible')</code> in your service provider so all new subscriptions use it automatically.
+    <div class="mt-6 pt-6 border-t border-white/10 text-sm text-white/70">
+        <strong class="text-white/90">Fully backwards compatible.</strong> Existing subscriptions stay on classic mode. Migrate individually with <code class="bg-white/10 px-1 rounded">$subscription->migrateToFlexibleBillingMode()</code> when ready, or set <code class="bg-white/10 px-1 rounded">Cashier::defaultBillingMode('flexible')</code> so all new subscriptions use it automatically.
     </div>
 </div>
 
