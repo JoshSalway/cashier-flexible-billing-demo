@@ -83,14 +83,17 @@ class DemoController extends Controller
     protected function scenarioFlexibleSub(): void
     {
         $user = $this->freshUser('flex-sub');
-        $this->step('Created test customer', true, ['email' => $user->email]);
+        $this->step('Created test customer', true, ['email' => $user->email], code: '$user = User::create([\'name\' => \'Demo User\', \'email\' => $email]);');
 
         $product = $this->stripe()->products->create(['name' => 'Pro Plan '.time()]);
         $price = $this->stripe()->prices->create([
             'product' => $product->id, 'currency' => 'usd',
             'recurring' => ['interval' => 'month'], 'unit_amount' => 2900,
         ]);
-        $this->step('Created product and price on Stripe', true, ['price' => '$29.00/mo']);
+        $this->step('Created product and price on Stripe', true, ['price' => '$29.00/mo'], code: '$price = $stripe->prices->create([
+    \'product\' => $product->id, \'currency\' => \'usd\',
+    \'recurring\' => [\'interval\' => \'month\'], \'unit_amount\' => 2900,
+]);');
 
         $subscription = $user->newSubscription('default', $price->id)
             ->withBillingMode('flexible')
@@ -111,7 +114,7 @@ class DemoController extends Controller
 $subscription->usesFlexibleBilling(); // true');
 
         $subscription->cancelNow();
-        $this->step('Cleaned up', true);
+        $this->step('Cleaned up', true, code: '$subscription->cancelNow();');
     }
 
     // =========================================================================
@@ -150,10 +153,10 @@ $subscription->migrateToFlexibleBillingMode();');
         $this->step('Swapped to premium ($25/mo) — billing mode preserved', $subscription->usesFlexibleBilling() && $subscription->stripe_price === $premium->id, [
             'new_price' => '$25.00/mo',
             'billing_mode' => 'flexible',
-        ]);
+        ], code: '$subscription->swap($premiumPrice);');
 
         $subscription->cancelNow();
-        $this->step('Cleaned up', true);
+        $this->step('Cleaned up', true, code: '$subscription->cancelNow();');
     }
 
     // =========================================================================
@@ -184,7 +187,8 @@ $subscription->migrateToFlexibleBillingMode();');
 
         $this->step('Set up hybrid pricing', true, [
             'base' => '$29.00/mo fixed', 'metered' => '$0.01 per API call',
-        ]);
+        ], code: '$base = $stripe->prices->create([\'unit_amount\' => 2900, ...]);
+$metered = $stripe->prices->create([\'unit_amount\' => 1, \'recurring\' => [\'usage_type\' => \'metered\', \'meter\' => $meter->id], ...]);');
 
         $subscription = $user->newSubscription('default')
             ->price($base->id)
@@ -205,10 +209,10 @@ $subscription->migrateToFlexibleBillingMode();');
         $subscription->removePrice($metered->id);
         $this->step('Removed metered price (no clear_usage error in flexible mode)', $subscription->hasSinglePrice(), [
             'remaining' => $subscription->stripe_price,
-        ]);
+        ], code: '$subscription->removePrice($meteredPrice);');
 
         $subscription->cancelNow();
-        $this->step('Cleaned up', true);
+        $this->step('Cleaned up', true, code: '$subscription->cancelNow();');
     }
 
     // =========================================================================
@@ -240,7 +244,7 @@ $subscription->migrateToFlexibleBillingMode();');
     ->create(\'pm_card_visa\');');
 
         $sub->cancelNow();
-        $this->step('Cleaned up', true);
+        $this->step('Cleaned up', true, code: '$subscription->cancelNow();');
     }
 
     // =========================================================================
@@ -272,7 +276,7 @@ $subscription->migrateToFlexibleBillingMode();');
 $subscription->usesFlexibleBilling(); // still true');
 
         $sub->cancelNow();
-        $this->step('Cleaned up', true);
+        $this->step('Cleaned up', true, code: '$subscription->cancelNow();');
     }
 
     // =========================================================================
@@ -282,7 +286,7 @@ $subscription->usesFlexibleBilling(); // still true');
     protected function scenarioGlobalDefault(): void
     {
         $original = Cashier::$defaultBillingMode;
-        $this->step('Current default: '.$original, true);
+        $this->step('Current default: '.$original, true, code: 'Cashier::$defaultBillingMode; // \''.$original.'\'');
 
         Cashier::defaultBillingMode('flexible');
         $this->step('Set Cashier::defaultBillingMode("flexible")', Cashier::$defaultBillingMode === 'flexible', code: '// In AppServiceProvider::boot()
@@ -304,7 +308,7 @@ $sub->usesFlexibleBilling(); // true');
 
         $sub->cancelNow();
         Cashier::$defaultBillingMode = $original;
-        $this->step('Reset global default to "'.$original.'"', true);
+        $this->step('Reset global default to "'.$original.'"', true, code: 'Cashier::$defaultBillingMode = \''.$original.'\';');
     }
 
     // =========================================================================
@@ -319,7 +323,9 @@ $sub->usesFlexibleBilling(); // true');
         $price = $this->stripe()->prices->create(['product' => $product->id, 'currency' => 'usd', 'recurring' => ['interval' => 'month'], 'unit_amount' => 1900]);
 
         $sub = $user->newSubscription('default', $price->id)->withBillingMode('flexible')->create('pm_card_visa');
-        $this->step('Created flexible subscription', $sub->active());
+        $this->step('Created flexible subscription', $sub->active(), code: '$sub = $user->newSubscription(\'default\', $priceId)
+    ->withBillingMode(\'flexible\')
+    ->create(\'pm_card_visa\');');
 
         $sub->cancel();
         $this->step('Canceled — on grace period', $sub->onGracePeriod() && $sub->valid(), [
@@ -334,7 +340,7 @@ $subscription->active();                // true
 $subscription->usesFlexibleBilling();   // true');
 
         $sub->cancelNow();
-        $this->step('Cleaned up', true);
+        $this->step('Cleaned up', true, code: '$subscription->cancelNow();');
     }
 
     // =========================================================================
@@ -373,7 +379,7 @@ $subscription->usesFlexibleBilling();   // true');
     ->create();');
 
         $schedule->release();
-        $this->step('Released — subscription continues independently', $schedule->released());
+        $this->step('Released — subscription continues independently', $schedule->released(), code: '$schedule->release();');
     }
 
     // =========================================================================
@@ -417,7 +423,9 @@ $subscription->usesFlexibleBilling();   // true');
         $price = $this->stripe()->prices->create(['product' => $product->id, 'currency' => 'usd', 'recurring' => ['interval' => 'month'], 'unit_amount' => 1900]);
 
         $sub = $user->newSubscription('default', $price->id)->withBillingMode('flexible')->create('pm_card_visa');
-        $this->step('Created flexible subscription', $sub->usesFlexibleBilling());
+        $this->step('Created flexible subscription', $sub->usesFlexibleBilling(), code: '$sub = $user->newSubscription(\'default\', $priceId)
+    ->withBillingMode(\'flexible\')
+    ->create(\'pm_card_visa\');');
 
         $schedule = $user->newSubscriptionSchedule('default')->createFromSubscription($sub);
         $this->step('Created schedule from subscription — billing mode inherited', $schedule->active(), [
@@ -428,7 +436,7 @@ $schedule = $user->newSubscriptionSchedule(\'default\')
     ->createFromSubscription($subscription);');
 
         $schedule->cancel();
-        $this->step('Cleaned up', true);
+        $this->step('Cleaned up', true, code: '$schedule->cancel();');
     }
 
     // =========================================================================
@@ -498,7 +506,7 @@ $schedule = $user->newSubscriptionSchedule(\'default\')
         $this->step('Reported 250 more events (350 total)', true, ['estimated' => '$17.50'], code: '$user->reportMeterEvent(\'api_calls\', 250);');
 
         $sub->cancelNow();
-        $this->step('Cleaned up', true);
+        $this->step('Cleaned up', true, code: '$subscription->cancelNow();');
     }
 
     // =========================================================================
@@ -554,10 +562,12 @@ $schedule = $user->newSubscriptionSchedule(\'default\')
                     </tr>
                 </tbody>
             </table>
-        ');
+        ', code: '$threshold->usagePercentage($currentUsage);
+$threshold->exceeded($currentUsage);
+$threshold->overage($currentUsage);');
 
         $user->removeUsageThreshold('meter_api_calls');
-        $this->step('Cleaned up', $user->getUsageThreshold('meter_api_calls') === null);
+        $this->step('Cleaned up', $user->getUsageThreshold('meter_api_calls') === null, code: '$user->removeUsageThreshold(\'meter_api_calls\');');
     }
 
     // =========================================================================
@@ -585,7 +595,11 @@ $schedule = $user->newSubscriptionSchedule(\'default\')
                 </tbody>
                 <tfoot class="bg-gray-100 font-semibold"><tr><td colspan="4" class="text-right px-3 py-2">Total</td><td class="text-right px-3 py-2 text-green-700">$'.number_format($result['total_amount'] / 100, 2).'</td></tr></tfoot>
             </table>
-        ');
+        ', code: '$rateCard = new RateCard([
+    \'pricing_type\' => \'tiered\',
+    \'rates\' => [\'mode\' => \'graduated\', \'tiers\' => [...]],
+]);
+$result = $rateCard->calculatePricing(15000);');
 
         $package = new RateCard([
             'pricing_type' => 'package', 'currency' => 'usd',
@@ -594,7 +608,11 @@ $schedule = $user->newSubscriptionSchedule(\'default\')
         $result = $package->calculatePricing(2500);
         $this->step('Package: 2,500 messages (1,000/pack at $5)', $result['packages_used'] === 3, [
             'packages' => 3, 'total' => '$'.number_format($result['total_amount'] / 100, 2),
-        ]);
+        ], code: '$rateCard = new RateCard([
+    \'pricing_type\' => \'package\',
+    \'rates\' => [\'package_size\' => 1000, \'package_price\' => 500],
+]);
+$result = $rateCard->calculatePricing(2500);');
 
         $flat = new RateCard([
             'pricing_type' => 'flat', 'currency' => 'usd',
@@ -603,7 +621,11 @@ $schedule = $user->newSubscriptionSchedule(\'default\')
         $result = $flat->calculatePricing(50000);
         $this->step('Flat: 50,000 MB at $0.01/MB', $result['total_amount'] === 50000, [
             'total' => '$'.number_format($result['total_amount'] / 100, 2),
-        ]);
+        ], code: '$rateCard = new RateCard([
+    \'pricing_type\' => \'flat\',
+    \'rates\' => [\'unit_amount\' => 1],
+]);
+$result = $rateCard->calculatePricing(50000);');
     }
 
     // =========================================================================
