@@ -43,15 +43,12 @@
             // Restore settings
             const savedName = localStorage.getItem('demoSettingName');
             const savedDomain = localStorage.getItem('demoSettingDomain');
-            const savedDashboard = localStorage.getItem('demoSettingDashboard');
             if (savedName) document.getElementById('setting-name').value = savedName;
             if (savedDomain) document.getElementById('setting-domain').value = savedDomain;
-            if (savedDashboard === '1') document.getElementById('dashboard-toggle').checked = true;
 
             // Auto-save settings on change
             document.getElementById('setting-name')?.addEventListener('input', e => localStorage.setItem('demoSettingName', e.target.value));
             document.getElementById('setting-domain')?.addEventListener('input', e => localStorage.setItem('demoSettingDomain', e.target.value));
-            document.getElementById('dashboard-toggle')?.addEventListener('change', e => localStorage.setItem('demoSettingDashboard', e.target.checked ? '1' : '0'));
             const saved = localStorage.getItem('demoResults');
             if (saved) {
                 const results = JSON.parse(saved);
@@ -85,13 +82,10 @@
             localStorage.removeItem('demoResults');
             localStorage.removeItem('demoSettingName');
             localStorage.removeItem('demoSettingDomain');
-            localStorage.removeItem('demoSettingDashboard');
             const nameEl = document.getElementById('setting-name');
             const domainEl = document.getElementById('setting-domain');
-            const dashEl = document.getElementById('dashboard-toggle');
             if (nameEl) nameEl.value = 'Demo User';
             if (domainEl) domainEl.value = 'cashier-demo.test';
-            if (dashEl) dashEl.checked = false;
             document.querySelectorAll('[id^="log-"]').forEach(el => el.innerHTML = '');
             document.querySelectorAll('[id^="status-"]').forEach(el => {
                 el.className = 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600';
@@ -146,7 +140,7 @@
                 statusEl.textContent = 'Running';
 
                 const params = new URLSearchParams();
-                if (document.getElementById('dashboard-toggle')?.checked) params.set('dashboard', '1');
+                params.set('dashboard', '1');
                 const nameEl = document.getElementById('setting-name');
                 const domainEl = document.getElementById('setting-domain');
                 if (nameEl?.value && nameEl.value !== 'Demo User') params.set('name', nameEl.value);
@@ -196,6 +190,19 @@
             'credits','metered-usage','usage-thresholds','ratecard',
             'migration',
         ];
+
+        let allCodeVisible = false;
+
+        function toggleAllCode() {
+            allCodeVisible = !allCodeVisible;
+            const btn = document.getElementById('toggle-code-btn');
+            document.querySelectorAll('[id^="code-"]').forEach(el => {
+                el.classList.toggle('hidden', !allCodeVisible);
+            });
+            btn.innerHTML = allCodeVisible
+                ? '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5"/></svg>Hide All Code'
+                : '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5"/></svg>Show All Code';
+        }
 
         let stopRequested = false;
 
