@@ -4,6 +4,10 @@ Interactive demo app showcasing **Laravel Cashier's Flexible Billing** features.
 
 Built with **Laravel 13** using the [Flexible Billing PR](https://github.com/JoshSalway/cashier-stripe/pull/5) for Laravel Cashier.
 
+## Interactive Demo
+
+Live: https://cashier-flexible-billing-demo-master-hzg0rn.laravel.cloud
+
 ## Quick Start
 
 ```bash
